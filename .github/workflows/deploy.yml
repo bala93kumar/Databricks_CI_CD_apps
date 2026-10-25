@@ -1,0 +1,96 @@
+name: Databricks CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Unit Tests (Free $0 on GitHub Runner)
+  # -------------------------------------------------------------
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Pytest
+        run: |
+          pip install pytest
+
+      - name: Run Unit Tests
+        run: |
+          pytest tests/
+
+  # -------------------------------------------------------------
+  # Job 2: Validate Databricks Asset Bundle (Free $0)
+  # -------------------------------------------------------------
+  validate-bundle:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate Bundle Configuration
+        run: |
+          databricks bundle validate -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+
+  # -------------------------------------------------------------
+  # Job 3: Deploy to DEV Workspace (On push to dev branch)
+  # -------------------------------------------------------------
+  deploy-dev:
+    needs: validate-bundle
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy Asset Bundle to DEV
+        run: |
+          databricks bundle deploy -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+
+  # -------------------------------------------------------------
+  # Job 4: Deploy to PROD Workspace (On push to main branch)
+  # -------------------------------------------------------------
+  deploy-prod:
+    needs: validate-bundle
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy Asset Bundle to PROD
+        run: |
+          databricks bundle deploy -t prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}

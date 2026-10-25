@@ -1,0 +1,3 @@
+project_name = "dbx-demo"
+location     = "eastus"
+sku          = "premium" # Required for Unity Catalog, MLflow, and AI Agents

@@ -1,0 +1,40 @@
+bundle:
+  name: databricks-cicd-demo
+
+include:
+  - resources/*.yml
+
+variables:
+  environment:
+    description: "Target environment name (dev or prod)"
+    default: "dev"
+  storage_account:
+    description: "ADLS Gen2 storage account for environment"
+    default: "dbxdemodevox0u"
+  container_name:
+    description: "Container name in ADLS Gen2"
+    default: "data"
+
+targets:
+  # DEV Target
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-7405616754983445.5.azuredatabricks.net
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      environment: "dev"
+      storage_account: "dbxdemodevox0u"
+      container_name: "data"
+
+  # PROD Target
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-7405605586886191.11.azuredatabricks.net
+      root_path: /Workspace/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      environment: "prod"
+      storage_account: "dbxdemoprodox0u"
+      container_name: "data"

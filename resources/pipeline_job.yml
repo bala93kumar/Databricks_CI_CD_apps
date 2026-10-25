@@ -1,0 +1,32 @@
+resources:
+  jobs:
+    demo_etl_job:
+      name: "[${bundle.target}] Demo ETL Pipeline"
+      
+      # Minimal Low-Cost Single Node Job Cluster (0 workers, Spot instance)
+      job_clusters:
+        - job_cluster_key: low_cost_cluster
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "Standard_D4ds_v5"
+            num_workers: 0 # Driver only (Single Node)
+            azure_attributes:
+              first_on_demand: 0
+              availability: SPOT_AZURE # Up to 80% cheaper
+              spot_bid_max_price: -1
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: "singleNode"
+            custom_tags:
+              ResourceClass: "SingleNode"
+              Environment: "${bundle.target}"
+
+      tasks:
+        - task_key: run_sample_pipeline
+          job_cluster_key: low_cost_cluster
+          notebook_task:
+            notebook_path: ../src/sample_pipeline.py
+            base_parameters:
+              environment: "${var.environment}"
+              storage_account: "${var.storage_account}"
+              container_name: "${var.container_name}"

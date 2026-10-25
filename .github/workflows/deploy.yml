@@ -52,8 +52,8 @@ jobs:
         run: |
           databricks bundle validate -t dev
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKSDEVHOST || secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKSDEVTOKEN || secrets.DATABRICKS_DEV_TOKEN }}
 
   # -------------------------------------------------------------
   # Job 3: Deploy to DEV Workspace (On push to dev branch)
@@ -73,8 +73,8 @@ jobs:
         run: |
           databricks bundle deploy -t dev
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKSDEVHOST || secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKSDEVTOKEN || secrets.DATABRICKS_DEV_TOKEN }}
 
   # -------------------------------------------------------------
   # Job 4: Deploy to PROD Workspace (On push to main branch)
@@ -94,5 +94,5 @@ jobs:
         run: |
           databricks bundle deploy -t prod
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKSPRODHOST || secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKSPRODTOKEN || secrets.DATABRICKS_PROD_TOKEN }}

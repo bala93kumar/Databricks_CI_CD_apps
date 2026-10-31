@@ -1,0 +1,79 @@
+# ======================================================================
+# UNITY CATALOG & PRIVILEGE MANAGEMENT AS CODE (Dev -> UAT -> Prod)
+# ======================================================================
+
+# Databricks Provider instances for Dev and Prod workspaces
+provider "databricks" {
+  alias = "dev"
+  host  = azurerm_databricks_workspace.dev.workspace_url
+}
+
+provider "databricks" {
+  alias = "prod"
+  host  = azurerm_databricks_workspace.prod.workspace_url
+}
+
+# ----------------------------------------------------------------------
+# DEV UNITY CATALOG GOVERNANCE
+# ----------------------------------------------------------------------
+resource "databricks_catalog" "dev_catalog" {
+  provider       = databricks.dev
+  name           = "dev_catalog"
+  comment        = "Dev Unity Catalog managed via Terraform"
+  isolation_mode = "ISOLATED"
+  properties = {
+    purpose = "development"
+  }
+}
+
+resource "databricks_schema" "dev_bronze" {
+  provider     = databricks.dev
+  catalog_name = databricks_catalog.dev_catalog.name
+  name         = "bronze"
+  comment      = "Raw ingestion layer"
+}
+
+resource "databricks_schema" "dev_silver" {
+  provider     = databricks.dev
+  catalog_name = databricks_catalog.dev_catalog.name
+  name         = "silver"
+  comment      = "Cleaned transformed layer"
+}
+
+resource "databricks_schema" "dev_gold" {
+  provider     = databricks.dev
+  catalog_name = databricks_catalog.dev_catalog.name
+  name         = "gold"
+  comment      = "Aggregated analytics layer"
+}
+
+# ----------------------------------------------------------------------
+# PROD UNITY CATALOG GOVERNANCE
+# ----------------------------------------------------------------------
+resource "databricks_catalog" "prod_catalog" {
+  provider       = databricks.prod
+  name           = "prod_catalog"
+  comment        = "Production Unity Catalog managed via Terraform"
+  isolation_mode = "ISOLATED"
+  properties = {
+    purpose = "production"
+  }
+}
+
+resource "databricks_schema" "prod_bronze" {
+  provider     = databricks.prod
+  catalog_name = databricks_catalog.prod_catalog.name
+  name         = "bronze"
+}
+
+resource "databricks_schema" "prod_silver" {
+  provider     = databricks.prod
+  catalog_name = databricks_catalog.prod_catalog.name
+  name         = "silver"
+}
+
+resource "databricks_schema" "prod_gold" {
+  provider     = databricks.prod
+  catalog_name = databricks_catalog.prod_catalog.name
+  name         = "gold"
+}

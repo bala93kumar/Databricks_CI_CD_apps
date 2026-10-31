@@ -38,7 +38,17 @@ output "prod_storage_abfss_path" {
   value       = "abfss://${azurerm_storage_data_lake_gen2_filesystem.prod_container.name}@${azurerm_storage_account.prod_storage.name}.dfs.core.windows.net"
 }
 
+output "uc_access_connector_id" {
+  description = "Resource ID of the Unity Catalog Access Connector"
+  value       = azurerm_databricks_access_connector.uc.id
+}
+
 output "resource_group_name" {
   description = "Resource group name"
   value       = azurerm_resource_group.rg.name
+}
+
+output "virtual_network_name" {
+  description = "Virtual Network name (VNet Injected - No NAT)"
+  value       = azurerm_virtual_network.vnet.name
 }

@@ -1,11 +1,26 @@
 # This file is maintained automatically by "terraform init".
 # Manual edits may be lost in future updates.
 
+provider "registry.terraform.io/databricks/databricks" {
+  version     = "1.140.0"
+  constraints = "~> 1.40"
+  hashes = [
+    "h1:NJVGRA9ofPY1wcwasiCSan9xIHjwvoprCLO8Gl8i9zg=",
+    "zh:3e381c46010cdd8629c4aa55885ac7a9129e6c3b20a404cb567b00d32aaf938f",
+    "zh:43d1a476cd3a150729ec9709ed7eafc5b5627d5d2d035b786932e940773b319a",
+    "zh:72952211e7df0063d858b6edc11fb1c773eaeea3f4248b266ff860af2e7bc024",
+    "zh:7a6b5353c47aa4b01c17d71b4dbb18cfa83bc172454ef8471b1f3b4f91f93893",
+    "zh:7b4f0a9180ccce668218248d34474399816086d11430b814a74039d6fd726c50",
+    "zh:a61181dccc5d1456ce9376d729fef051034aba2fa3bb2bd6c26c88407a29f015",
+  ]
+}
+
 provider "registry.terraform.io/hashicorp/azurerm" {
   version     = "3.117.1"
   constraints = "~> 3.100"
   hashes = [
     "h1:01r5mJ5Izv/aeJHEZAxnJYSuGWM9M8u4h073YwEj8DY=",
+    "h1:Y9J+emydHX7LpJYKdF9Zmng0zcRR86Awm/t28LNzb68=",
     "zh:0c513676836e3c50d004ece7d2624a8aff6faac14b833b96feeac2e4bc2c1c12",
     "zh:50ea01ada95bae2f187db9e926e463f45d860767a85ebc59160414e00e76c35d",
     "zh:52c2a9edacc06b3f72153f5ef6daca0761c6292158815961fe37f60bc576a3d7",
@@ -26,6 +41,7 @@ provider "registry.terraform.io/hashicorp/random" {
   constraints = "~> 3.5"
   hashes = [
     "h1:4AN630toDK+4Is2MQcbGA37yR56nIEDPO0qv8ivZD2M=",
+    "h1:7uiStw0Rl9KOdX5UNMG/sp9nyadoD4LZekQTiYlYPhE=",
     "zh:05f4734c1f0be840b711b3eff259ebc5fca436784c728955b1678078466f48d7",
     "zh:0b91bf19371d012434eba1deeb6aab77158def9b39601dcbd94450b3974a2a26",
     "zh:0ee6eacd47ec00183d55d726a4b6c4ce951a199f944bf22f1aa58392ebdfa7a2",

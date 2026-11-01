@@ -21,20 +21,20 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://adb-7405616754983445.5.azuredatabricks.net
+      host: https://adb-7405605201845024.4.azuredatabricks.net
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
     variables:
       environment: "dev"
-      storage_account: "dbxdemodevox0u"
+      storage_account: "dbxdemodev80en"
       container_name: "data"
 
   # PROD Target
   prod:
     mode: production
     workspace:
-      host: https://adb-7405605586886191.11.azuredatabricks.net
+      host: https://adb-7405618385351801.1.azuredatabricks.net
       root_path: /Workspace/.bundle/${bundle.name}/${bundle.target}
     variables:
       environment: "prod"
-      storage_account: "dbxdemoprodox0u"
+      storage_account: "dbxdemoprod80en"
       container_name: "data"

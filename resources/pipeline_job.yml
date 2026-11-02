@@ -8,7 +8,7 @@ resources:
         - job_cluster_key: low_cost_cluster
           new_cluster:
             spark_version: "14.3.x-scala2.12"
-            node_type_id: "Standard_D4ds_v5"
+            node_type_id: "Standard_D4ds_v4"
             num_workers: 0 # Driver only (Single Node)
             azure_attributes:
               first_on_demand: 1

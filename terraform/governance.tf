@@ -69,9 +69,9 @@ resource "databricks_cluster" "dev_shared_cluster" {
   provider                = databricks.dev
   cluster_name            = "Shared-Dev-SingleNode-Cluster"
   spark_version           = "14.3.x-scala2.12"
-  node_type_id            = "Standard_D4ds_v5"
-  num_workers             = 0  # Single-Node Mode (Driver only)
-  autotermination_minutes = 10 # Strictly shuts down after 10 mins of inactivity!
+  node_type_id            = "Standard_D4ds_v4" # Exact node size with 10 cores available in East US!
+  num_workers             = 0                  # Single-Node Mode (Driver only, 4 cores total)
+  autotermination_minutes = 10                 # Strictly shuts down after 10 mins of inactivity!
   data_security_mode      = "SINGLE_USER"
   single_user_name        = databricks_user.dev_developer.user_name
 
@@ -146,37 +146,36 @@ resource "databricks_schema" "prod_retail_gold" {
 # 5. RBAC PRIVILEGES: DEV (WRITE) vs PROD (READ-ONLY)
 # ======================================================================
 
-# DEV PRIVILEGE: Data Engineers get FULL WRITE ACCESS in DEV Silver AND Gold!
+# DEV PRIVILEGE: Data Developer gets FULL WRITE ACCESS in DEV Silver AND Gold!
 resource "databricks_grant" "dev_silver_write" {
   provider   = databricks.dev
   schema     = "${data.databricks_catalog.dev_workspace_catalog.name}.${databricks_schema.dev_retail_silver.name}"
-  principal  = databricks_group.dev_data_engineers.display_name
+  principal  = databricks_user.dev_developer.user_name
   privileges = ["USE_SCHEMA", "SELECT", "MODIFY", "CREATE_TABLE"]
-  depends_on = [databricks_group.dev_data_engineers]
+  depends_on = [databricks_user.dev_developer, databricks_schema.dev_retail_silver]
 }
 
 resource "databricks_grant" "dev_gold_write" {
   provider   = databricks.dev
   schema     = "${data.databricks_catalog.dev_workspace_catalog.name}.${databricks_schema.dev_retail_gold.name}"
-  principal  = databricks_group.dev_data_engineers.display_name
+  principal  = databricks_user.dev_developer.user_name
   privileges = ["USE_SCHEMA", "SELECT", "MODIFY", "CREATE_TABLE"]
-  depends_on = [databricks_group.dev_data_engineers]
+  depends_on = [databricks_user.dev_developer, databricks_schema.dev_retail_gold]
 }
 
-# PROD PRIVILEGE: Data Engineers get STRICTLY READ-ONLY ACCESS in PROD Silver & Gold
-# (They CANNOT write, insert, modify, or drop tables in Prod!)
+# PROD PRIVILEGE: Data Developer gets STRICTLY READ-ONLY ACCESS in PROD Silver & Gold
 resource "databricks_grant" "prod_silver_read" {
   provider   = databricks.prod
   schema     = "${data.databricks_catalog.prod_workspace_catalog.name}.${databricks_schema.prod_retail_silver.name}"
-  principal  = databricks_group.prod_data_engineers.display_name
+  principal  = databricks_user.prod_developer.user_name
   privileges = ["USE_SCHEMA", "SELECT"] # Read-Only in Production!
-  depends_on = [databricks_group.prod_data_engineers]
+  depends_on = [databricks_user.prod_developer, databricks_schema.prod_retail_silver]
 }
 
 resource "databricks_grant" "prod_gold_read" {
   provider   = databricks.prod
   schema     = "${data.databricks_catalog.prod_workspace_catalog.name}.${databricks_schema.prod_retail_gold.name}"
-  principal  = databricks_group.prod_data_engineers.display_name
+  principal  = databricks_user.prod_developer.user_name
   privileges = ["USE_SCHEMA", "SELECT"] # Read-Only in Production!
-  depends_on = [databricks_group.prod_data_engineers]
+  depends_on = [databricks_user.prod_developer, databricks_schema.prod_retail_gold]
 }

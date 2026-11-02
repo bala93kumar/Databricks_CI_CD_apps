@@ -1,6 +1,5 @@
 name: Terraform Platform CI/CD
 
-
 on:
   workflow_dispatch:
   pull_request:
@@ -17,6 +16,11 @@ on:
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'
+
+# Prevent runner collisions on the remote state file
+concurrency:
+  group: terraform-state-lock
+  cancel-in-progress: false
 
 jobs:
   # =============================================================
@@ -61,7 +65,7 @@ jobs:
             -target=databricks_grant.dev_gold_write
 
       - name: Terraform Apply (DEV Governance)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           terraform apply -auto-approve \
             -target=databricks_user.dev_developer \
@@ -114,7 +118,7 @@ jobs:
             -target=databricks_grant.prod_gold_read
 
       - name: Terraform Apply (PROD Governance)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           terraform apply -auto-approve \
             -target=databricks_user.prod_developer \

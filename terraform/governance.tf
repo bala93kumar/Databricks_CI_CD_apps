@@ -23,6 +23,7 @@ resource "databricks_user" "dev_developer" {
   user_name            = "bala93kumar@gmail.com"
   display_name         = "Bala Developer"
   allow_cluster_create = false # FinOps guardrail: Strictly blocked from creating VMs!
+  workspace_access     = true
 }
 
 # Developer onboarded into PROD workspace (with read-only rights)
@@ -31,6 +32,7 @@ resource "databricks_user" "prod_developer" {
   user_name            = "bala93kumar@gmail.com"
   display_name         = "Bala Developer"
   allow_cluster_create = false # In Prod: Cannot create any clusters!
+  workspace_access     = true
 }
 
 # ======================================================================

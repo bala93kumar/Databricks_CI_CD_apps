@@ -26,15 +26,23 @@ locals {
     }
   ]
 
-  # Add or remove schemas here:
-  schemas = {
-    "retail_silver" = {
-      comment = "Cleaned tables managed via Terraform"
-    }
-    "retail_gold" = {
-      comment = "Aggregated analytics managed via Terraform"
-    }
-  }
+  # Medallion Layers (Catalogs):
+  medallion_layers = ["bronze", "silver", "gold"]
+
+  # Business Domains (Schemas):
+  domains = ["retail", "marketing"]
+
+  # Medallion matrix: 3 layers x 2 domains = 6 schemas
+  medallion_matrix = flatten([
+    for layer in local.medallion_layers : [
+      for dom in local.domains : {
+        key     = "${layer}.${dom}"
+        layer   = layer
+        schema  = dom
+        comment = "${upper(layer)} layer for ${dom} domain managed via Terraform"
+      }
+    ]
+  ])
 }
 
 # ======================================================================
@@ -137,83 +145,171 @@ resource "databricks_permissions" "dev_cluster_perms" {
 }
 
 # ======================================================================
-# 5. MEDALLION SCHEMAS IN UNITY CATALOG (Looped via for_each)
+# 5. DEPRECATED OLD SCHEMAS (Empty map instructs Terraform to DESTROY them)
 # ======================================================================
 
-# DEV Catalog & Schemas
-data "databricks_catalog" "dev_workspace_catalog" {
-  provider = databricks.dev
-  name     = "dbx_demo_dev_ws_7405605201845024"
-}
-
 resource "databricks_schema" "dev_schemas" {
-  for_each     = local.schemas
-  provider     = databricks.dev
-  catalog_name = data.databricks_catalog.dev_workspace_catalog.name
-  name         = each.key
-  comment      = "DEV: ${each.value.comment}"
-}
-
-# PROD Catalog & Schemas
-data "databricks_catalog" "prod_workspace_catalog" {
-  provider = databricks.prod
-  name     = "dbx_demo_prod_ws_7405618385351801"
+  for_each      = tomap({})
+  provider      = databricks.dev
+  catalog_name  = "dbx_demo_dev_ws_7405605201845024"
+  name          = each.key
+  force_destroy = true
 }
 
 resource "databricks_schema" "prod_schemas" {
-  for_each     = local.schemas
-  provider     = databricks.prod
-  catalog_name = data.databricks_catalog.prod_workspace_catalog.name
-  name         = each.key
-  comment      = "PROD: ${each.value.comment}"
+  for_each      = tomap({})
+  provider      = databricks.prod
+  catalog_name  = "dbx_demo_prod_ws_7405618385351801"
+  name          = each.key
+  force_destroy = true
+}
+
+resource "databricks_grant" "dev_grants" {
+  for_each   = tomap({})
+  provider   = databricks.dev
+  schema     = each.key
+  principal  = "none"
+  privileges = ["USE_SCHEMA"]
+}
+
+resource "databricks_grant" "prod_grants" {
+  for_each   = tomap({})
+  provider   = databricks.prod
+  schema     = each.key
+  principal  = "none"
+  privileges = ["USE_SCHEMA"]
 }
 
 # ======================================================================
-# 6. RBAC PRIVILEGES: DEV (WRITE) vs PROD (READ-ONLY)
+# 6. MEDALLION CATALOGS & SCHEMAS IN UNITY CATALOG (Option A: dev_*, prod_*)
+# ======================================================================
+
+# DEV Catalogs: dev_bronze, dev_silver, dev_gold
+resource "databricks_catalog" "dev_medallion_catalogs" {
+  for_each      = toset(local.medallion_layers)
+  provider      = databricks.dev
+  name          = "dev_${each.key}"
+  comment       = "DEV Medallion Catalog: ${upper(each.key)}"
+  force_destroy = true
+}
+
+# DEV Schemas: retail & marketing inside dev_bronze, dev_silver, dev_gold
+resource "databricks_schema" "dev_medallion_schemas" {
+  for_each      = { for item in local.medallion_matrix : item.key => item }
+  provider      = databricks.dev
+  catalog_name  = databricks_catalog.dev_medallion_catalogs[each.value.layer].name
+  name          = each.value.schema
+  comment       = "DEV: ${each.value.comment}"
+  force_destroy = true
+}
+
+# PROD Catalogs: prod_bronze, prod_silver, prod_gold
+resource "databricks_catalog" "prod_medallion_catalogs" {
+  for_each      = toset(local.medallion_layers)
+  provider      = databricks.prod
+  name          = "prod_${each.key}"
+  comment       = "PROD Medallion Catalog: ${upper(each.key)}"
+  force_destroy = true
+}
+
+# PROD Schemas: retail & marketing inside prod_bronze, prod_silver, prod_gold
+resource "databricks_schema" "prod_medallion_schemas" {
+  for_each      = { for item in local.medallion_matrix : item.key => item }
+  provider      = databricks.prod
+  catalog_name  = databricks_catalog.prod_medallion_catalogs[each.value.layer].name
+  name          = each.value.schema
+  comment       = "PROD: ${each.value.comment}"
+  force_destroy = true
+}
+
+# ======================================================================
+# 7. RBAC PRIVILEGES: DEV (WRITE) vs PROD (READ-ONLY)
 # ======================================================================
 
 locals {
-  # Build combinations of developers x schemas for DEV write grants
-  dev_developer_schema_pairs = flatten([
+  # DEV: Developer x Catalog pairs (for USE_CATALOG)
+  dev_developer_catalog_pairs = flatten([
     for dev_email, dev in databricks_user.dev_developer : [
-      for schema_name, s in databricks_schema.dev_schemas : {
-        key       = "${dev_email}.${schema_name}"
+      for layer, cat in databricks_catalog.dev_medallion_catalogs : {
+        key       = "${dev_email}.${layer}"
         principal = dev.user_name
-        schema    = "${data.databricks_catalog.dev_workspace_catalog.name}.${schema_name}"
+        catalog   = cat.name
       }
     ]
   ])
 
-  # Build combinations of developers x schemas for PROD read grants
+  # DEV: Developer x Schema pairs (for USE_SCHEMA, SELECT, MODIFY, CREATE_TABLE)
+  dev_developer_schema_pairs = flatten([
+    for dev_email, dev in databricks_user.dev_developer : [
+      for key, s in databricks_schema.dev_medallion_schemas : {
+        key       = "${dev_email}.${key}"
+        principal = dev.user_name
+        schema    = "${s.catalog_name}.${s.name}"
+      }
+    ]
+  ])
+
+  # PROD: Developer x Catalog pairs (for USE_CATALOG)
+  prod_developer_catalog_pairs = flatten([
+    for dev_email, dev in databricks_user.prod_developer : [
+      for layer, cat in databricks_catalog.prod_medallion_catalogs : {
+        key       = "${dev_email}.${layer}"
+        principal = dev.user_name
+        catalog   = cat.name
+      }
+    ]
+  ])
+
+  # PROD: Developer x Schema pairs (for USE_SCHEMA, SELECT - Read-only)
   prod_developer_schema_pairs = flatten([
     for dev_email, dev in databricks_user.prod_developer : [
-      for schema_name, s in databricks_schema.prod_schemas : {
-        key       = "${dev_email}.${schema_name}"
+      for key, s in databricks_schema.prod_medallion_schemas : {
+        key       = "${dev_email}.${key}"
         principal = dev.user_name
-        schema    = "${data.databricks_catalog.prod_workspace_catalog.name}.${schema_name}"
+        schema    = "${s.catalog_name}.${s.name}"
       }
     ]
   ])
 }
 
-# DEV PRIVILEGE: Data Developers get FULL WRITE ACCESS in DEV Schemas!
-resource "databricks_grant" "dev_grants" {
+# DEV: Developers get USE_CATALOG on DEV Catalogs
+resource "databricks_grant" "dev_catalog_grants" {
+  for_each   = { for p in local.dev_developer_catalog_pairs : p.key => p }
+  provider   = databricks.dev
+  catalog    = each.value.catalog
+  principal  = each.value.principal
+  privileges = ["USE_CATALOG"]
+  depends_on = [databricks_user.dev_developer, databricks_catalog.dev_medallion_catalogs]
+}
+
+# DEV: Developers get FULL WRITE ACCESS on DEV Schemas
+resource "databricks_grant" "dev_schema_grants" {
   for_each   = { for p in local.dev_developer_schema_pairs : p.key => p }
   provider   = databricks.dev
   schema     = each.value.schema
   principal  = each.value.principal
   privileges = ["USE_SCHEMA", "SELECT", "MODIFY", "CREATE_TABLE"]
-  depends_on = [databricks_user.dev_developer, databricks_schema.dev_schemas]
+  depends_on = [databricks_user.dev_developer, databricks_schema.dev_medallion_schemas]
 }
 
-# PROD PRIVILEGE: Data Developers get STRICTLY READ-ONLY ACCESS in PROD Schemas!
-resource "databricks_grant" "prod_grants" {
+# PROD: Developers get USE_CATALOG on PROD Catalogs
+resource "databricks_grant" "prod_catalog_grants" {
+  for_each   = { for p in local.prod_developer_catalog_pairs : p.key => p }
+  provider   = databricks.prod
+  catalog    = each.value.catalog
+  principal  = each.value.principal
+  privileges = ["USE_CATALOG"]
+  depends_on = [databricks_user.prod_developer, databricks_catalog.prod_medallion_catalogs]
+}
+
+# PROD: Developers get STRICTLY READ-ONLY ACCESS on PROD Schemas
+resource "databricks_grant" "prod_schema_grants" {
   for_each   = { for p in local.prod_developer_schema_pairs : p.key => p }
   provider   = databricks.prod
   schema     = each.value.schema
   principal  = each.value.principal
   privileges = ["USE_SCHEMA", "SELECT"] # Read-Only in Production!
-  depends_on = [databricks_user.prod_developer, databricks_schema.prod_schemas]
+  depends_on = [databricks_user.prod_developer, databricks_schema.prod_medallion_schemas]
 }
 
 # ======================================================================

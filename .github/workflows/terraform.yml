@@ -60,7 +60,11 @@ jobs:
             -target=databricks_cluster.dev_developer_cluster \
             -target=databricks_permissions.dev_cluster_perms \
             -target=databricks_schema.dev_schemas \
-            -target=databricks_grant.dev_grants
+            -target=databricks_grant.dev_grants \
+            -target=databricks_catalog.dev_medallion_catalogs \
+            -target=databricks_schema.dev_medallion_schemas \
+            -target=databricks_grant.dev_catalog_grants \
+            -target=databricks_grant.dev_schema_grants
 
       - name: Terraform Apply (DEV Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -72,7 +76,11 @@ jobs:
             -target=databricks_cluster.dev_developer_cluster \
             -target=databricks_permissions.dev_cluster_perms \
             -target=databricks_schema.dev_schemas \
-            -target=databricks_grant.dev_grants
+            -target=databricks_grant.dev_grants \
+            -target=databricks_catalog.dev_medallion_catalogs \
+            -target=databricks_schema.dev_medallion_schemas \
+            -target=databricks_grant.dev_catalog_grants \
+            -target=databricks_grant.dev_schema_grants
 
   # =============================================================
   # PROD: Runs Plan on PR to main, and Apply when PR merged to main
@@ -109,7 +117,11 @@ jobs:
             -target=databricks_group.prod_data_engineers \
             -target=databricks_group_member.prod_membership \
             -target=databricks_schema.prod_schemas \
-            -target=databricks_grant.prod_grants
+            -target=databricks_grant.prod_grants \
+            -target=databricks_catalog.prod_medallion_catalogs \
+            -target=databricks_schema.prod_medallion_schemas \
+            -target=databricks_grant.prod_catalog_grants \
+            -target=databricks_grant.prod_schema_grants
 
       - name: Terraform Apply (PROD Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -119,4 +131,8 @@ jobs:
             -target=databricks_group.prod_data_engineers \
             -target=databricks_group_member.prod_membership \
             -target=databricks_schema.prod_schemas \
-            -target=databricks_grant.prod_grants
+            -target=databricks_grant.prod_grants \
+            -target=databricks_catalog.prod_medallion_catalogs \
+            -target=databricks_schema.prod_medallion_schemas \
+            -target=databricks_grant.prod_catalog_grants \
+            -target=databricks_grant.prod_schema_grants

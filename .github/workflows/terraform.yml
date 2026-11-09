@@ -57,12 +57,10 @@ jobs:
             -target=databricks_user.dev_developer \
             -target=databricks_group.dev_data_engineers \
             -target=databricks_group_member.dev_membership \
-            -target=databricks_cluster.dev_shared_cluster \
+            -target=databricks_cluster.dev_developer_cluster \
             -target=databricks_permissions.dev_cluster_perms \
-            -target=databricks_schema.dev_retail_silver \
-            -target=databricks_schema.dev_retail_gold \
-            -target=databricks_grant.dev_silver_write \
-            -target=databricks_grant.dev_gold_write
+            -target=databricks_schema.dev_schemas \
+            -target=databricks_grant.dev_grants
 
       - name: Terraform Apply (DEV Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -71,12 +69,10 @@ jobs:
             -target=databricks_user.dev_developer \
             -target=databricks_group.dev_data_engineers \
             -target=databricks_group_member.dev_membership \
-            -target=databricks_cluster.dev_shared_cluster \
+            -target=databricks_cluster.dev_developer_cluster \
             -target=databricks_permissions.dev_cluster_perms \
-            -target=databricks_schema.dev_retail_silver \
-            -target=databricks_schema.dev_retail_gold \
-            -target=databricks_grant.dev_silver_write \
-            -target=databricks_grant.dev_gold_write
+            -target=databricks_schema.dev_schemas \
+            -target=databricks_grant.dev_grants
 
   # =============================================================
   # PROD: Runs Plan on PR to main, and Apply when PR merged to main
@@ -112,10 +108,8 @@ jobs:
             -target=databricks_user.prod_developer \
             -target=databricks_group.prod_data_engineers \
             -target=databricks_group_member.prod_membership \
-            -target=databricks_schema.prod_retail_silver \
-            -target=databricks_schema.prod_retail_gold \
-            -target=databricks_grant.prod_silver_read \
-            -target=databricks_grant.prod_gold_read
+            -target=databricks_schema.prod_schemas \
+            -target=databricks_grant.prod_grants
 
       - name: Terraform Apply (PROD Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -124,7 +118,5 @@ jobs:
             -target=databricks_user.prod_developer \
             -target=databricks_group.prod_data_engineers \
             -target=databricks_group_member.prod_membership \
-            -target=databricks_schema.prod_retail_silver \
-            -target=databricks_schema.prod_retail_gold \
-            -target=databricks_grant.prod_silver_read \
-            -target=databricks_grant.prod_gold_read
+            -target=databricks_schema.prod_schemas \
+            -target=databricks_grant.prod_grants

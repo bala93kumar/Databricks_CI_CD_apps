@@ -1,0 +1,130 @@
+name: Terraform Platform CI/CD
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+
+# Prevent runner collisions on the remote state file
+concurrency:
+  group: terraform-state-lock
+  cancel-in-progress: false
+
+jobs:
+  # =============================================================
+  # DEV: Runs Plan on PR to dev, and Apply when PR merged to dev
+  # =============================================================
+  terraform-dev:
+    name: Terraform DEV
+    if: github.base_ref == 'dev' || github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan (DEV Governance)
+        if: github.event_name == 'pull_request'
+        run: |
+          terraform plan \
+            -target=databricks_user.dev_developer \
+            -target=databricks_group.dev_data_engineers \
+            -target=databricks_group_member.dev_membership \
+            -target=databricks_cluster.dev_shared_cluster \
+            -target=databricks_permissions.dev_cluster_perms \
+            -target=databricks_schema.dev_retail_silver \
+            -target=databricks_schema.dev_retail_gold \
+            -target=databricks_grant.dev_silver_write \
+            -target=databricks_grant.dev_gold_write
+
+      - name: Terraform Apply (DEV Governance)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          terraform apply -auto-approve \
+            -target=databricks_user.dev_developer \
+            -target=databricks_group.dev_data_engineers \
+            -target=databricks_group_member.dev_membership \
+            -target=databricks_cluster.dev_shared_cluster \
+            -target=databricks_permissions.dev_cluster_perms \
+            -target=databricks_schema.dev_retail_silver \
+            -target=databricks_schema.dev_retail_gold \
+            -target=databricks_grant.dev_silver_write \
+            -target=databricks_grant.dev_gold_write
+
+  # =============================================================
+  # PROD: Runs Plan on PR to main, and Apply when PR merged to main
+  # =============================================================
+  terraform-prod:
+    name: Terraform PROD
+    if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan (PROD Governance)
+        if: github.event_name == 'pull_request'
+        run: |
+          terraform plan \
+            -target=databricks_user.prod_developer \
+            -target=databricks_group.prod_data_engineers \
+            -target=databricks_group_member.prod_membership \
+            -target=databricks_schema.prod_retail_silver \
+            -target=databricks_schema.prod_retail_gold \
+            -target=databricks_grant.prod_silver_read \
+            -target=databricks_grant.prod_gold_read
+
+      - name: Terraform Apply (PROD Governance)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          terraform apply -auto-approve \
+            -target=databricks_user.prod_developer \
+            -target=databricks_group.prod_data_engineers \
+            -target=databricks_group_member.prod_membership \
+            -target=databricks_schema.prod_retail_silver \
+            -target=databricks_schema.prod_retail_gold \
+            -target=databricks_grant.prod_silver_read \
+            -target=databricks_grant.prod_gold_read

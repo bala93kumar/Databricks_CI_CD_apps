@@ -181,7 +181,51 @@ resource "databricks_grant" "prod_grants" {
 }
 
 # ======================================================================
-# 6. MEDALLION CATALOGS & SCHEMAS IN UNITY CATALOG (Option A: dev_*, prod_*)
+# 6. STORAGE CREDENTIALS & EXTERNAL LOCATIONS (Backs Medallion Storage)
+# ======================================================================
+
+# DEV Storage Credential (Managed Identity via Azure Access Connector)
+resource "databricks_storage_credential" "dev_credential" {
+  provider = databricks.dev
+  name     = "${azurerm_databricks_access_connector.uc.name}-dev-cred"
+  azure_managed_identity {
+    access_connector_id = azurerm_databricks_access_connector.uc.id
+  }
+  comment = "Managed Identity credential for DEV Unity Catalog storage"
+}
+
+# DEV External Location (Root container for DEV data)
+resource "databricks_external_location" "dev_external_location" {
+  provider        = databricks.dev
+  name            = "dev-data-external-location"
+  url             = "abfss://${azurerm_storage_data_lake_gen2_filesystem.dev_container.name}@${azurerm_storage_account.dev_storage.name}.dfs.core.windows.net/"
+  credential_name = databricks_storage_credential.dev_credential.id
+  comment         = "External location for DEV Medallion catalogs"
+  force_destroy   = true
+}
+
+# PROD Storage Credential
+resource "databricks_storage_credential" "prod_credential" {
+  provider = databricks.prod
+  name     = "${azurerm_databricks_access_connector.uc.name}-prod-cred"
+  azure_managed_identity {
+    access_connector_id = azurerm_databricks_access_connector.uc.id
+  }
+  comment = "Managed Identity credential for PROD Unity Catalog storage"
+}
+
+# PROD External Location (Root container for PROD data)
+resource "databricks_external_location" "prod_external_location" {
+  provider        = databricks.prod
+  name            = "prod-data-external-location"
+  url             = "abfss://${azurerm_storage_data_lake_gen2_filesystem.prod_container.name}@${azurerm_storage_account.prod_storage.name}.dfs.core.windows.net/"
+  credential_name = databricks_storage_credential.prod_credential.id
+  comment         = "External location for PROD Medallion catalogs"
+  force_destroy   = true
+}
+
+# ======================================================================
+# 7. MEDALLION CATALOGS & SCHEMAS IN UNITY CATALOG (Option A: dev_*, prod_*)
 # ======================================================================
 
 # DEV Catalogs: dev_bronze, dev_silver, dev_gold
@@ -189,6 +233,7 @@ resource "databricks_catalog" "dev_medallion_catalogs" {
   for_each      = toset(local.medallion_layers)
   provider      = databricks.dev
   name          = "dev_${each.key}"
+  storage_root  = "${databricks_external_location.dev_external_location.url}${each.key}"
   comment       = "DEV Medallion Catalog: ${upper(each.key)}"
   force_destroy = true
 }
@@ -208,6 +253,7 @@ resource "databricks_catalog" "prod_medallion_catalogs" {
   for_each      = toset(local.medallion_layers)
   provider      = databricks.prod
   name          = "prod_${each.key}"
+  storage_root  = "${databricks_external_location.prod_external_location.url}${each.key}"
   comment       = "PROD Medallion Catalog: ${upper(each.key)}"
   force_destroy = true
 }
@@ -223,7 +269,7 @@ resource "databricks_schema" "prod_medallion_schemas" {
 }
 
 # ======================================================================
-# 7. RBAC PRIVILEGES: DEV (WRITE) vs PROD (READ-ONLY)
+# 8. RBAC PRIVILEGES: DEV (WRITE) vs PROD (READ-ONLY)
 # ======================================================================
 
 locals {

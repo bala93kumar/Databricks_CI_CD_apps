@@ -318,6 +318,15 @@ locals {
   ])
 }
 
+# DEV: Allow all account users (Admins & Developers) to see DEV Catalogs
+resource "databricks_grant" "dev_catalog_account_users" {
+  for_each   = databricks_catalog.dev_medallion_catalogs
+  provider   = databricks.dev
+  catalog    = each.value.name
+  principal  = "account users"
+  privileges = ["USE_CATALOG"]
+}
+
 # DEV: Developers get USE_CATALOG on DEV Catalogs
 resource "databricks_grant" "dev_catalog_grants" {
   for_each   = { for p in local.dev_developer_catalog_pairs : p.key => p }
@@ -326,6 +335,15 @@ resource "databricks_grant" "dev_catalog_grants" {
   principal  = each.value.principal
   privileges = ["USE_CATALOG"]
   depends_on = [databricks_user.dev_developer, databricks_catalog.dev_medallion_catalogs]
+}
+
+# DEV: Allow all account users to read DEV Schemas
+resource "databricks_grant" "dev_schema_account_users" {
+  for_each   = databricks_schema.dev_medallion_schemas
+  provider   = databricks.dev
+  schema     = "${each.value.catalog_name}.${each.value.name}"
+  principal  = "account users"
+  privileges = ["USE_SCHEMA", "SELECT"]
 }
 
 # DEV: Developers get FULL WRITE ACCESS on DEV Schemas
@@ -338,6 +356,15 @@ resource "databricks_grant" "dev_schema_grants" {
   depends_on = [databricks_user.dev_developer, databricks_schema.dev_medallion_schemas]
 }
 
+# PROD: Allow all account users to see PROD Catalogs
+resource "databricks_grant" "prod_catalog_account_users" {
+  for_each   = databricks_catalog.prod_medallion_catalogs
+  provider   = databricks.prod
+  catalog    = each.value.name
+  principal  = "account users"
+  privileges = ["USE_CATALOG"]
+}
+
 # PROD: Developers get USE_CATALOG on PROD Catalogs
 resource "databricks_grant" "prod_catalog_grants" {
   for_each   = { for p in local.prod_developer_catalog_pairs : p.key => p }
@@ -346,6 +373,15 @@ resource "databricks_grant" "prod_catalog_grants" {
   principal  = each.value.principal
   privileges = ["USE_CATALOG"]
   depends_on = [databricks_user.prod_developer, databricks_catalog.prod_medallion_catalogs]
+}
+
+# PROD: Allow all account users to read PROD Schemas
+resource "databricks_grant" "prod_schema_account_users" {
+  for_each   = databricks_schema.prod_medallion_schemas
+  provider   = databricks.prod
+  schema     = "${each.value.catalog_name}.${each.value.name}"
+  principal  = "account users"
+  privileges = ["USE_SCHEMA", "SELECT"]
 }
 
 # PROD: Developers get STRICTLY READ-ONLY ACCESS on PROD Schemas

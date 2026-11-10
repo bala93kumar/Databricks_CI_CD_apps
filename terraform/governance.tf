@@ -28,13 +28,13 @@ locals {
 
   # Medallion Schemas managed via Terraform
   schemas = {
-    "retail_bronze" = {
+    "marketing_bronze" = {
       comment = "Raw ingested retail data"
     }
-    "retail_silver" = {
+    "marketing_silver" = {
       comment = "Cleaned and conformed retail tables"
     }
-    "retail_gold" = {
+    "marketing_gold" = {
       comment = "Aggregated analytics retail KPIs"
     }
   }

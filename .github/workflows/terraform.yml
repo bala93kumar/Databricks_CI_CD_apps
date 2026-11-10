@@ -52,11 +52,29 @@ jobs:
 
       - name: Terraform Plan (DEV Governance)
         if: github.event_name == 'pull_request'
-        run: terraform plan
+        run: |
+          terraform plan \
+            -target=databricks_user.dev_developer \
+            -target=databricks_group.dev_data_engineers \
+            -target=databricks_group_member.dev_membership \
+            -target=databricks_cluster.dev_developer_cluster \
+            -target=databricks_permissions.dev_cluster_perms \
+            -target=databricks_schema.dev_schemas \
+            -target=databricks_grant.dev_grants \
+            -target=databricks_grant.dev_schema_account_users
 
       - name: Terraform Apply (DEV Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: terraform apply -auto-approve
+        run: |
+          terraform apply -auto-approve \
+            -target=databricks_user.dev_developer \
+            -target=databricks_group.dev_data_engineers \
+            -target=databricks_group_member.dev_membership \
+            -target=databricks_cluster.dev_developer_cluster \
+            -target=databricks_permissions.dev_cluster_perms \
+            -target=databricks_schema.dev_schemas \
+            -target=databricks_grant.dev_grants \
+            -target=databricks_grant.dev_schema_account_users
 
   # =============================================================
   # PROD: Runs Plan on PR to main, and Apply when PR merged to main
@@ -87,8 +105,22 @@ jobs:
 
       - name: Terraform Plan (PROD Governance)
         if: github.event_name == 'pull_request'
-        run: terraform plan
+        run: |
+          terraform plan \
+            -target=databricks_user.prod_developer \
+            -target=databricks_group.prod_data_engineers \
+            -target=databricks_group_member.prod_membership \
+            -target=databricks_schema.prod_schemas \
+            -target=databricks_grant.prod_grants \
+            -target=databricks_grant.prod_schema_account_users
 
       - name: Terraform Apply (PROD Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: terraform apply -auto-approve
+        run: |
+          terraform apply -auto-approve \
+            -target=databricks_user.prod_developer \
+            -target=databricks_group.prod_data_engineers \
+            -target=databricks_group_member.prod_membership \
+            -target=databricks_schema.prod_schemas \
+            -target=databricks_grant.prod_grants \
+            -target=databricks_grant.prod_schema_account_users

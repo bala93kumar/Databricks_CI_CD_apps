@@ -1,0 +1,155 @@
+================================================================================
+PRESENTER'S COMPLETE TALK SCRIPT & DEMO GUIDE
+PROJECT: Enterprise Azure Databricks Platform & Governance CI/CD
+PRESENTER: Balakumar Seetharaman
+SLIDE DECK: Databricks_Platform_CI_CD_Demo.pptx
+================================================================================
+
+[TIME ESTIMATE: 7 to 10 minutes presentation + 5 minutes Q&A]
+
+--------------------------------------------------------------------------------
+SLIDE 1: TITLE SLIDE
+"Enterprise Databricks Platform & Governance as Code"
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"Hello everyone, thank you for your time today. 
+
+Today, I am presenting our Enterprise Azure Databricks Platform and Governance setup, built entirely as code using Terraform and automated through GitHub Actions.
+
+The focus of this project is threefold:
+1. First, establishing a production-grade, zero-standby-cost FinOps architecture.
+2. Second, enforcing strict environmental isolation between Development and Production through declarative GitOps.
+3. And third, separating platform administration from developer pipelines using an enterprise Two-Repo model.
+
+Over the next few minutes, I will walk you through the architecture, our FinOps guardrails, and showcase a live demonstration of declarative schema promotion and developer onboarding."
+
+
+--------------------------------------------------------------------------------
+SLIDE 2: ARCHITECTURE STRATEGY - THE TWO-REPO MODEL
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"To start with our high-level architecture, we have implemented an enterprise separation of concerns using two distinct Git repositories.
+
+Our first repo—the one we are demonstrating today—is the Platform & Governance Admin Repo. 
+This repository contains zero application code. It is exclusively owned by platform engineers and administrators. It provisions our Azure networking, ADLS Gen2 storage accounts, our DEV and PROD Databricks workspaces, Unity Catalog schemas, and developer access controls.
+
+Our second repo—which we will launch next—is the Developer Pipeline Repo ('pyspark-pipeline'). 
+This is where data engineers write PySpark transformations, run local unit tests with pytest, and deploy Databricks Asset Bundles (DABs).
+
+By separating these two concerns, data engineers never need cloud administrative privileges, Azure portal access, or Terraform permissions. They operate safely inside the governance boundaries established by Repo 1."
+
+
+--------------------------------------------------------------------------------
+SLIDE 3: CLOUD INFRASTRUCTURE & FINOPS GUARDRAILS
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"Next, let’s look at the cloud foundation and our strict FinOps controls.
+
+In cloud data platforms, idle standby costs can quickly spiral out of control. For example, a default Azure NAT Gateway costs roughly $32 per month just sitting idle with zero traffic. 
+In our design, we implemented custom VNet Injection with zero-NAT networking, utilizing secure Public IP egress during active runs. This gives us an idle standby network cost of exactly ₹0.00 per hour.
+
+Furthermore:
+- Our Terraform remote state is stored securely in Azure Blob Storage with automated state leasing and concurrency locks to prevent race conditions during CI/CD runs.
+- Storage accounts are isolated per environment: 'dbxdemodev80en' for Development, and 'dbxdemoprod80en' for Production.
+- Throughout our multi-day development and testing cycle across both DEV and PROD workspaces, our total cloud spend was under ₹20 total. This proves that an enterprise-grade platform can be maintained at virtually zero standby cost."
+
+
+--------------------------------------------------------------------------------
+SLIDE 4: PILLAR 1 - UNITY CATALOG MEDALLION SCHEMAS AS CODE
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"Now let's examine Pillar 1 of our platform: Unity Catalog Medallion Schemas as code.
+
+In Azure Databricks, when Unity Catalog is auto-enabled in a region like East US, all workspaces share a common regional metastore. To prevent cross-workspace schema pollution, we bound our medallion layers to the dedicated workspace default catalogs.
+
+In this design:
+- We declare our medallion schemas—bronze, silver, and gold—in a simple Terraform local map.
+- Environmental protection is strictly enforced in CI/CD. When a developer pushes code to the 'dev' branch, GitHub Actions executes targeted plans that touch ONLY the DEV workspace. Production is completely unreachable from the dev branch.
+- Production is updated exclusively through a formal Pull Request merged into the 'main' branch.
+- And because Terraform is declarative, it automatically handles state reconciliation—creating new schemas and cleanly destroying deprecated ones with zero manual UI intervention."
+
+
+--------------------------------------------------------------------------------
+SLIDE 5: PILLAR 2 - DEVELOPER ONBOARDING & COMPUTE AS CODE
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"Pillar 2 addresses Developer Onboarding, Access Control, and FinOps compute guardrails.
+
+In traditional setups, onboarding a developer involves clicking through multiple Azure AD and Databricks UI menus, which is error-prone and un-audited. 
+In our platform, onboarding a developer is as simple as adding their email to a declarative list in Terraform.
+
+Once declared:
+1. First, FinOps Guardrail: We set 'allow_cluster_create = false'. Developers are strictly blocked from spinning up multi-node clusters or expensive GPU instances.
+2. Second, Automated Compute: The platform automatically provisions a dedicated single-node compute cluster using Standard_D4ds_v4 VMs. We configured a strict 10-minute auto-termination policy. If a developer leaves their desk, the cluster shuts down automatically, ensuring ₹0 idle compute waste.
+3. Third, RBAC: In Development, the developer has full write access (CREATE TABLE, MODIFY) to build pipelines. In Production, their account is locked to strictly Read-Only access (USE_SCHEMA, SELECT).
+4. Finally, Offboarding: We codified 'force_delete_home_dir = true'. When a developer leaves or is commented out of the code, Terraform automatically deprovisions their user account, revokes all grants, deletes their cluster, and purges their home directory cleanly."
+
+
+--------------------------------------------------------------------------------
+SLIDE 6: PILLAR 3 - DEVELOPER PIPELINE EXECUTION (REPO 2 PREVIEW)
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"Now, how does our second repository—the developer pipeline repo—interact with this platform?
+
+A common question is: How does the new repo inherit permissions from the admin repo?
+The answer is that permissions live inside Unity Catalog, not in the Git repository.
+
+Repo 1 established the Unity Catalog schemas and assigned RBAC privileges to our Service Principal.
+Repo 2 simply authenticates using that same Service Principal via GitHub Secrets. When the pipeline runs 'databricks bundle deploy', Unity Catalog validates the service principal and allows it to write to marketing_bronze and marketing_silver.
+
+In Repo 2, we also implement 'Shift-Left' quality assurance: PySpark transformations are tested locally with pytest using a local SparkSession inside the GitHub Actions runner. Only when all unit tests pass does the bundle deploy to Databricks."
+
+
+--------------------------------------------------------------------------------
+SLIDE 7: LIVE DEMONSTRATION & PROOF
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"To prove that this platform works as advertised, we conducted a live end-to-end demonstration earlier today:
+
+We executed a complete medallion schema transition from 'retail_*' to 'marketing_*':
+- Step 1: We updated the code in the 'dev' branch. GitHub Actions triggered and automatically destroyed the 9 old retail resources and added the 9 new marketing resources in the DEV workspace.
+- Step 2: We immediately inspected the live Production workspace and verified that Production was 100% untouched. It still held the retail schemas, proving our branch isolation works.
+- Step 3: We opened a Pull Request from 'dev' into 'main'. GitHub Actions posted a Terraform Plan preview showing exactly 9 additions and 9 destructions targeted for Production.
+- Step 4: Upon clicking Merge Pull Request, GitHub Actions ran Terraform Apply for Production. Within 29 seconds, the Production workspace cleanly updated to marketing_bronze, marketing_silver, and marketing_gold with read-only developer RBAC.
+
+All of this was achieved with zero downtime, zero manual UI touching, and complete auditability."
+
+
+--------------------------------------------------------------------------------
+SLIDE 8: SUMMARY & KEY BUSINESS VALUE
+--------------------------------------------------------------------------------
+[WHAT TO SAY]:
+"In summary, what we have built is:
+1. 100% Infrastructure and Governance as Code: Fully reproducible, auditable, and resilient.
+2. FinOps Optimization: ₹0.00 standby cost and strict VM auto-termination.
+3. Security & Compliance: Complete separation of privileges, automated user lifecycle management, and branch-protected Production deployments.
+
+This platform is now fully operational, stable, and ready to host data engineering pipelines at scale.
+
+Thank you, and I would now be happy to take any questions."
+
+
+================================================================================
+ANTICIPATED QUESTIONS & ANSWERS (Q&A CHEAT SHEET)
+================================================================================
+
+Q1: Why did you choose a Two-Repo model instead of putting everything in a Monorepo?
+ANSWER:
+"In an enterprise setting, platform governance and application code have completely different lifecycles and security boundaries. Platform engineers manage Azure VNets, IAM, and Unity Catalog schemas, which require elevated privileges. Data engineers write PySpark ETL code and should not have permissions to modify cloud networking or cluster policies. A two-repo architecture enforces least-privilege security and prevents pipeline developers from accidentally destabilizing infrastructure."
+
+Q2: How do you guarantee ₹0.00 idle costs on Azure?
+ANSWER:
+"Two primary mechanisms: First, on the network layer, we use custom VNet injection with Public IP egress, avoiding the ~$32/month fee of a standby Azure NAT Gateway. Second, on compute, we enforce single-node compute (Standard_D4ds_v4) with a hardcoded 10-minute auto-termination policy. VMs only run when a notebook or job is active, dropping to zero when idle."
+
+Q3: What prevents a developer from creating an expensive GPU or 20-node cluster in DEV?
+ANSWER:
+"In our Terraform governance code, every developer is provisioned with 'allow_cluster_create = false'. If a developer clicks 'Create Compute' in the Databricks UI, Databricks strictly denies the request. Developers can only attach to pre-approved, admin-managed clusters that have cost guardrails built in."
+
+Q4: How are secrets managed between GitHub Actions and Databricks?
+ANSWER:
+"We use Azure Service Principal credentials (Client ID, Client Secret, Tenant ID) stored securely inside GitHub Encrypted Secrets. Secrets are injected at runtime into the runner's environment variables and never logged or exposed in code."
+
+Q5: What happens if a developer leaves the company?
+ANSWER:
+"Offboarding is fully codified. We simply comment out or remove the developer's entry from 'local.data_engineers' in Terraform and merge the PR. Because we set 'force_delete_home_dir = true', Terraform automatically deletes their Databricks user account, revokes all schema grants, deletes their dedicated cluster, and purges their personal workspace folder."
+================================================================================

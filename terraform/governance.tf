@@ -38,6 +38,15 @@ locals {
       comment = "Aggregated analytics retail KPIs"
     }
   }
+
+  # Add or remove pipeline service principals here:
+  pipeline_service_principals = [
+    {
+      display_name   = "marketing-pipeline-sp"
+      application_id = "bd075c7d-d255-4c57-a63d-368fbf208426"
+      schemas        = ["marketing_bronze", "marketing_silver", "marketing_gold"]
+    }
+  ]
 }
 
 # ======================================================================
@@ -52,7 +61,7 @@ resource "databricks_user" "dev_developer" {
   display_name          = each.value.display_name
   allow_cluster_create  = false # FinOps guardrail: Strictly blocked from creating custom VMs!
   workspace_access      = true
-  force_delete_home_dir = true  # Cleans up /Users/<email> folder upon offboarding
+  force_delete_home_dir = true # Cleans up /Users/<email> folder upon offboarding
 }
 
 # Onboard developers into PROD workspace
@@ -267,4 +276,60 @@ moved {
 moved {
   from = databricks_permissions.dev_cluster_perms
   to   = databricks_permissions.dev_cluster_perms["bala93kumar@gmail.com"]
+}
+
+# ======================================================================
+# 8. PIPELINE SERVICE PRINCIPALS (CI/CD Deployment & Serverless Execution)
+# ======================================================================
+
+# Onboard Pipeline SPs into DEV & PROD Workspaces
+resource "databricks_service_principal" "dev_pipeline_sp" {
+  for_each             = { for sp in local.pipeline_service_principals : sp.display_name => sp }
+  provider             = databricks.dev
+  application_id       = each.value.application_id
+  display_name         = each.value.display_name
+  workspace_access     = true
+  allow_cluster_create = false
+}
+
+resource "databricks_service_principal" "prod_pipeline_sp" {
+  for_each             = { for sp in local.pipeline_service_principals : sp.display_name => sp }
+  provider             = databricks.prod
+  application_id       = each.value.application_id
+  display_name         = each.value.display_name
+  workspace_access     = true
+  allow_cluster_create = false
+}
+
+# Build dynamic combinations of (Service Principal x Allowed Schemas)
+locals {
+  sp_schema_pairs = flatten([
+    for sp in local.pipeline_service_principals : [
+      for schema_name in sp.schemas : {
+        key            = "${sp.display_name}.${schema_name}"
+        application_id = sp.application_id
+        schema_name    = schema_name
+      }
+    ]
+  ])
+}
+
+# Grant Write Access to Pipeline SPs in DEV
+resource "databricks_grant" "dev_sp_grants" {
+  for_each   = { for p in local.sp_schema_pairs : p.key => p }
+  provider   = databricks.dev
+  schema     = "${data.databricks_catalog.dev_workspace_catalog.name}.${each.value.schema_name}"
+  principal  = each.value.application_id
+  privileges = ["USE_SCHEMA", "SELECT", "MODIFY", "CREATE_TABLE"]
+  depends_on = [databricks_service_principal.dev_pipeline_sp, databricks_schema.dev_schemas]
+}
+
+# Grant Write Access to Pipeline SPs in PROD
+resource "databricks_grant" "prod_sp_grants" {
+  for_each   = { for p in local.sp_schema_pairs : p.key => p }
+  provider   = databricks.prod
+  schema     = "${data.databricks_catalog.prod_workspace_catalog.name}.${each.value.schema_name}"
+  principal  = each.value.application_id
+  privileges = ["USE_SCHEMA", "SELECT", "MODIFY", "CREATE_TABLE"]
+  depends_on = [databricks_service_principal.prod_pipeline_sp, databricks_schema.prod_schemas]
 }

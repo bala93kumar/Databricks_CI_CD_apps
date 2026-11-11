@@ -61,7 +61,9 @@ jobs:
             -target=databricks_permissions.dev_cluster_perms \
             -target=databricks_schema.dev_schemas \
             -target=databricks_grant.dev_grants \
-            -target=databricks_grant.dev_schema_account_users
+            -target=databricks_grant.dev_schema_account_users \
+            -target=databricks_service_principal.dev_pipeline_sp \
+            -target=databricks_grant.dev_sp_grants
 
       - name: Terraform Apply (DEV Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -74,7 +76,9 @@ jobs:
             -target=databricks_permissions.dev_cluster_perms \
             -target=databricks_schema.dev_schemas \
             -target=databricks_grant.dev_grants \
-            -target=databricks_grant.dev_schema_account_users
+            -target=databricks_grant.dev_schema_account_users \
+            -target=databricks_service_principal.dev_pipeline_sp \
+            -target=databricks_grant.dev_sp_grants
 
   # =============================================================
   # PROD: Runs Plan on PR to main, and Apply when PR merged to main
@@ -112,7 +116,9 @@ jobs:
             -target=databricks_group_member.prod_membership \
             -target=databricks_schema.prod_schemas \
             -target=databricks_grant.prod_grants \
-            -target=databricks_grant.prod_schema_account_users
+            -target=databricks_grant.prod_schema_account_users \
+            -target=databricks_service_principal.prod_pipeline_sp \
+            -target=databricks_grant.prod_sp_grants
 
       - name: Terraform Apply (PROD Governance)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -123,4 +129,6 @@ jobs:
             -target=databricks_group_member.prod_membership \
             -target=databricks_schema.prod_schemas \
             -target=databricks_grant.prod_grants \
-            -target=databricks_grant.prod_schema_account_users
+            -target=databricks_grant.prod_schema_account_users \
+            -target=databricks_service_principal.prod_pipeline_sp \
+            -target=databricks_grant.prod_sp_grants

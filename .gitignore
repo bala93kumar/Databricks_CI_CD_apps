@@ -29,3 +29,5 @@ venv/
 .env
 .DS_Store
 Thumbs.db
+*.pptx
+*.txt
